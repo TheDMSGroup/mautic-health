@@ -25,10 +25,10 @@ class HealthModel
     protected $campaigns;
 
     /** @var int */
-    protected $campaignRebuildThreshold = 10;
+    protected $campaignRebuildThreshold = 10000;
 
     /** @var int */
-    protected $campaignTriggerThreshold = 10;
+    protected $campaignTriggerThreshold = 1000;
 
     /** @var array */
     protected $incidents;
@@ -68,17 +68,20 @@ class HealthModel
             }
             $this->campaigns[$id]['rebuilds'] = $campaign['contact_count'];
             if ($output) {
-                $output->writeln(
-                    '<info>'.
-                    'Campaign '.$id.' has '.$campaign['contact_count'].' leads queued to enter the campaign from a segment.'
-                    .'</info>'
-                );
                 if (!isset($this->incidents[$id])) {
                     $this->incidents[$id] = [];
                 }
-                if ($campaign['leads_entering_campaign'] > $this->campaignRebuildThreshold) {
+                if ($campaign['contact_count'] > $this->campaignRebuildThreshold) {
                     $this->incidents[$id]['rebuilds'] = $campaign['contact_count'];
+                    $status                           = 'error';
+                } else {
+                    $status = 'info';
                 }
+                $output->writeln(
+                    '<'.$status.'>'.
+                    'Campaign '.$id.' has '.$campaign['contact_count'].' leads queued to enter the campaign from a segment.'
+                    .'</'.$status.'>'
+                );
             }
         }
     }
@@ -105,42 +108,29 @@ class HealthModel
             }
             $this->campaigns[$id]['triggers'] = $campaign['contact_count'];
             if ($output) {
-                $output->writeln(
-                    '<info>'.
-                    'Campaign '.$id.' has '.$campaign['contact_count'].' leads queued for events to be triggered.'
-                    .'</info>'
-                );
                 if (!isset($this->incidents[$id])) {
                     $this->incidents[$id] = [];
                 }
-                if ($campaign['leads_entering_campaign'] > $this->campaignTriggerThreshold) {
+                if ($campaign['contact_count'] > $this->campaignTriggerThreshold) {
                     $this->incidents[$id]['triggers'] = $campaign['contact_count'];
+                    $status                           = 'error';
+                } else {
+                    $status = 'info';
                 }
+                $output->writeln(
+                    '<'.$status.'>'.
+                    'Campaign '.$id.' has '.$campaign['contact_count'].' leads queued for events to be triggered.'
+                    .'</'.$status.'>'
+                );
             }
         }
     }
 
     /**
-     * @param null $output
-     *
-     * @return array
+     * Gets all current incidents where we are over the limit.
      */
-    public function getIncidents($output = null)
+    public function getIncidents()
     {
-        if ($output) {
-            if ($this->incidents) {
-                foreach ($this->incidents as $id => $incidents) {
-                    foreach ($incidents as $type => $contact_count) {
-                        $output->writeln(
-                            '<error>'.
-                            'Campaign '.$id.' is behind on '.$type.' by '.$contact_count.' contacts.'
-                            .'</error>'
-                        );
-                    }
-                }
-            }
-        }
-
         return $this->incidents;
     }
 }
