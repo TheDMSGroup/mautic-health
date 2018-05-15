@@ -12,6 +12,7 @@
 namespace MauticPlugin\MauticHealthBundle\Model;
 
 use Doctrine\ORM\EntityManager;
+use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * Class HealthModel.
@@ -25,10 +26,10 @@ class HealthModel
     protected $campaigns;
 
     /** @var int */
-    protected $campaignRebuildThreshold = 10000;
+    protected $campaignRebuildThreshold;
 
     /** @var int */
-    protected $campaignTriggerThreshold = 1000;
+    protected $campaignTriggerThreshold;
 
     /** @var array */
     protected $incidents;
@@ -45,12 +46,37 @@ class HealthModel
     }
 
     /**
+     * @param $campaignRebuildThreshold
+     *
+     * @return $this
+     */
+    public function setCampaignRebuildThreshold($campaignRebuildThreshold)
+    {
+        $this->campaignRebuildThreshold = $campaignRebuildThreshold;
+
+        return $this;
+    }
+
+    /**
+     * @param $campaignTriggerThreshold
+     *
+     * @return $this
+     */
+    public function setCampaignTriggerThreshold($campaignTriggerThreshold)
+    {
+        $this->campaignTriggerThreshold = $campaignTriggerThreshold;
+
+        return $this;
+    }
+
+    /**
      * Discern the number of leads waiting on mautic:campaign:rebuild.
      * This typically means a large segment has been given a campaign.
      *
-     * @param null $output
+     * @param OutputInterface $output
+     * @param bool            $verbose
      */
-    public function campaignRebuildCheck($output = null)
+    public function campaignRebuildCheck(OutputInterface $output = null, $verbose = false)
     {
         $query = $this->em->getConnection()->createQueryBuilder();
         $query->select('cl.campaign_id as campaign_id, count(DISTINCT(cl.lead_id)) as contact_count');
@@ -76,6 +102,9 @@ class HealthModel
                     $status                           = 'error';
                 } else {
                     $status = 'info';
+                    if (!$verbose) {
+                        continue;
+                    }
                 }
                 $output->writeln(
                     '<'.$status.'>'.
@@ -90,9 +119,10 @@ class HealthModel
      * Discern the number of leads waiting on mautic:campaign:trigger.
      * This will happen if it takes longer to execute triggers than for new contacts to be consumed.
      *
-     * @param null $output
+     * @param OutputInterface $output
+     * @param bool            $verbose
      */
-    public function campaignTriggerCheck($output = null)
+    public function campaignTriggerCheck(OutputInterface $output = null, $verbose = false)
     {
         $query = $this->em->getConnection()->createQueryBuilder();
         $query->select('el.campaign_id as campaign_id, COUNT(DISTINCT(el.lead_id)) as contact_count');
@@ -116,6 +146,9 @@ class HealthModel
                     $status                           = 'error';
                 } else {
                     $status = 'info';
+                    if (!$verbose) {
+                        continue;
+                    }
                 }
                 $output->writeln(
                     '<'.$status.'>'.
