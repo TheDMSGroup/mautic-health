@@ -12,6 +12,8 @@
 namespace MauticPlugin\MauticHealthBundle\Model;
 
 use Doctrine\ORM\EntityManager;
+use Mautic\PluginBundle\Helper\IntegrationHelper;
+use Mautic\PluginBundle\Integration\AbstractIntegration;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -25,48 +27,45 @@ class HealthModel
     /** @var array */
     protected $campaigns;
 
-    /** @var int */
-    protected $campaignRebuildThreshold;
-
-    /** @var int */
-    protected $campaignTriggerThreshold;
-
     /** @var array */
     protected $incidents;
 
+    /** @var IntegrationHelper */
+    protected $integrationHelper;
+
+    /** @var array */
+    protected $settings;
+
+    /** @var AbstractIntegration */
+    protected $integration;
+
     /**
-     * Health constructor.
+     * HealthModel constructor.
      *
-     * @param EntityManager $em
+     * @param EntityManager     $em
+     * @param IntegrationHelper $integrationHelper
      */
     public function __construct(
-        EntityManager $em
+        EntityManager $em,
+        IntegrationHelper $integrationHelper
     ) {
-        $this->em = $em;
+        $this->em                = $em;
+        $this->integrationHelper = $integrationHelper;
+
+        /** @var \Mautic\PluginBundle\Integration\AbstractIntegration $integration */
+        $integration = $this->integrationHelper->getIntegrationObject('Health');
+        if ($integration) {
+            $this->integration = $integration;
+            $this->settings    = $integration->getIntegrationSettings()->getFeatureSettings();
+        }
     }
 
     /**
-     * @param $campaignRebuildThreshold
-     *
-     * @return $this
+     * @param $settings
      */
-    public function setCampaignRebuildThreshold($campaignRebuildThreshold)
+    public function setSettings($settings)
     {
-        $this->campaignRebuildThreshold = $campaignRebuildThreshold;
-
-        return $this;
-    }
-
-    /**
-     * @param $campaignTriggerThreshold
-     *
-     * @return $this
-     */
-    public function setCampaignTriggerThreshold($campaignTriggerThreshold)
-    {
-        $this->campaignTriggerThreshold = $campaignTriggerThreshold;
-
-        return $this;
+        $this->settings = array_merge($this->settings, $settings);
     }
 
     /**
@@ -78,7 +77,8 @@ class HealthModel
      */
     public function campaignRebuildCheck(OutputInterface $output = null, $verbose = false)
     {
-        $query = $this->em->getConnection()->createQueryBuilder();
+        $threshold = !empty($this->settings['campaign_rebuild_threshold']) ? (int) $this->settings['campaign_rebuild_threshold'] : 10000;
+        $query     = $this->em->getConnection()->createQueryBuilder();
         $query->select('cl.campaign_id as campaign_id, count(DISTINCT(cl.lead_id)) as contact_count');
         $query->from(MAUTIC_TABLE_PREFIX.'campaign_leads', 'cl');
         $query->where('cl.manually_removed IS NOT NULL AND cl.manually_removed = 0');
@@ -94,10 +94,7 @@ class HealthModel
             }
             $this->campaigns[$id]['rebuilds'] = $campaign['contact_count'];
             if ($output) {
-                if (!isset($this->incidents[$id])) {
-                    $this->incidents[$id] = [];
-                }
-                if ($campaign['contact_count'] > $this->campaignRebuildThreshold) {
+                if ($campaign['contact_count'] > $threshold) {
                     $this->incidents[$id]['rebuilds'] = $campaign['contact_count'];
                     $status                           = 'error';
                 } else {
@@ -124,7 +121,8 @@ class HealthModel
      */
     public function campaignTriggerCheck(OutputInterface $output = null, $verbose = false)
     {
-        $query = $this->em->getConnection()->createQueryBuilder();
+        $threshold = !empty($this->settings['campaign_trigger_threshold']) ? (int) $this->settings['campaign_trigger_threshold'] : 1000;
+        $query     = $this->em->getConnection()->createQueryBuilder();
         $query->select('el.campaign_id as campaign_id, COUNT(DISTINCT(el.lead_id)) as contact_count');
         $query->from(MAUTIC_TABLE_PREFIX.'campaign_lead_event_log', 'el');
         $query->where('el.is_scheduled = 1');
@@ -138,10 +136,7 @@ class HealthModel
             }
             $this->campaigns[$id]['triggers'] = $campaign['contact_count'];
             if ($output) {
-                if (!isset($this->incidents[$id])) {
-                    $this->incidents[$id] = [];
-                }
-                if ($campaign['contact_count'] > $this->campaignTriggerThreshold) {
+                if ($campaign['contact_count'] > $threshold) {
                     $this->incidents[$id]['triggers'] = $campaign['contact_count'];
                     $status                           = 'error';
                 } else {
@@ -165,5 +160,25 @@ class HealthModel
     public function getIncidents()
     {
         return $this->incidents;
+    }
+
+    /**
+     * If Statuspage is enabled and configured, report incidents.
+     */
+    public function reportIncidents(OutputInterface $output = null)
+    {
+        if ($this->integration && $this->incidents && !empty($this->settings['statuspage_component_id'])) {
+            $message = 'hi';
+            $this->integration->setComponentStatus($this->settings['statuspage_component_id'], $message);
+
+            if ($output && $message) {
+                $output->writeln(
+                    '<info>'.
+                    'Notifying Statuspage.io: '.$message
+                    .'</info>'
+                );
+            }
+
+        }
     }
 }

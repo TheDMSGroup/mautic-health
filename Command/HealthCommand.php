@@ -35,15 +35,13 @@ class HealthCommand extends ModeratedCommand
                 'campaign-rebuild-threshold',
                 null,
                 InputOption::VALUE_OPTIONAL,
-                'The maximum number of contacts waiting to be ingested into a campaign from a segment.',
-                10000
+                'The maximum number of contacts waiting to be ingested into a campaign from a segment.'
             )
             ->addOption(
                 'campaign-trigger-threshold',
                 null,
                 InputOption::VALUE_OPTIONAL,
-                'The maximum number of contacts waiting for scheduled campaign events to fire which are late.',
-                1000
+                'The maximum number of contacts waiting for scheduled campaign events to fire which are late.'
             );
 
         parent::configure();
@@ -60,6 +58,7 @@ class HealthCommand extends ModeratedCommand
         $verbose                  = $input->getOption('verbose');
         $campaignRebuildThreshold = $input->getOption('campaign-rebuild-threshold');
         $campaignTriggerThreshold = $input->getOption('campaign-trigger-threshold');
+        $quiet                    = $input->getOption('quiet');
         $container                = $this->getContainer();
         $translator               = $container->get('translator');
 
@@ -76,10 +75,21 @@ class HealthCommand extends ModeratedCommand
                 ).'</info>'
             );
         }
-        $healthModel->setCampaignRebuildThreshold($campaignRebuildThreshold);
-        $healthModel->setCampaignTriggerThreshold($campaignTriggerThreshold);
+        $settings = [];
+        if ($campaignRebuildThreshold) {
+            $settings['campaign_rebuild_threshold'] = $campaignRebuildThreshold;
+        }
+        if ($campaignTriggerThreshold) {
+            $settings['campaign_trigger_threshold'] = $campaignTriggerThreshold;
+        }
+        if ($settings) {
+            $healthModel->setSettings($settings);
+        }
         $healthModel->campaignRebuildCheck($output, $verbose);
         $healthModel->campaignTriggerCheck($output, $verbose);
+        if (!$quiet) {
+            $healthModel->reportIncidents($output);
+        }
         if ($verbose) {
             $output->writeln(
                 '<info>'.$translator->trans(

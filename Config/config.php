@@ -21,6 +21,7 @@ return [
                 'class'     => 'MauticPlugin\MauticHealthBundle\Model\HealthModel',
                 'arguments' => [
                     'doctrine.orm.entity_manager',
+                    'mautic.helper.integration',
                 ],
             ],
         ],
