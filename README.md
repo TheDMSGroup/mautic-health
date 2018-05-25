@@ -6,7 +6,7 @@ Checks the health of the Mautic instance, optionally reporting to statuspage.io.
 This is currently used to find out if certain cron jobs are overdue or overtaxed.
 There are likely many other things that can be checked to discern the health of Mautic.
 For example, RAM, hard drive utilization, CPU, connectivity, email spool size.
-Suggestions? Let us know.
+Suggestions? Let us know. PRs are also welcome.
 
 Checks currently included:
 * mautic:campaigns:update
