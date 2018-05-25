@@ -19,15 +19,13 @@ use Mautic\PluginBundle\Integration\AbstractIntegration;
 class HealthIntegration extends AbstractIntegration
 {
 
-    /** @var string */
-    const INCIDENT_IMPACT = 'minor';
-
     /**
-     * @param string $status Blank for default status or:
-     *                       degraded_performance|partial_outage|major_outage|under_maintenance
-     * @param string $body
+     * @param null $incidentStatus
+     * @param null $componentStatus
+     * @param null $name
+     * @param null $body
      */
-    public function setComponentStatus($status = '', $body, $name)
+    public function setComponentStatus($incidentStatus = null, $componentStatus = null, $name = null, $body = null)
     {
         if ($this->isConfigured()) {
             $featureSettings = $this->getIntegrationSettings()->getFeatureSettings();
@@ -35,51 +33,61 @@ class HealthIntegration extends AbstractIntegration
                 $components = $this->getComponents();
                 foreach ($components as $component) {
                     if ($component['id'] === $featureSettings['statuspage_component_id']) {
-                        // @todo - Update the component status.
+                        // Update the component status if needed.
+                        if ($componentStatus !== $component['status']) {
+                            $clientIdKey = $this->getClientIdKey();
+                            $clientSKey  = $this->getClientSecretKey();
+                            $state       = $this->getAuthLoginState();
+                            $url         = $this->getAuthenticationUrl()
+                                .'pages/'.$this->keys[$clientIdKey].'/components/'.$component['id'].'.json'
+                                .'?api_key='.$this->keys[$clientSKey]
+                                .'&response_type=code'
+                                .'&state='.$state
+                                .'&component[status]='.urlencode($componentStatus);
 
-                        // $clientIdKey = $this->getClientIdKey();
-                        // $clientSKey  = $this->getClientSecretKey();
-                        // $state       = $this->getAuthLoginState();
-                        // $url         = $this->getAuthenticationUrl()
-                        //     .'pages/'.$this->keys[$clientIdKey].'/components.json'
-                        //     .'?api_key='.$this->keys[$clientSKey]
-                        //     .'&response_type=code'
-                        //     .'&state='.$state;
-                        //
-                        // $result = $this->makeRequest($this->getAccessTokenUrl(), ['ignore_event_dispatch' => true], 'PATCH');
-
-                        // @todo - Close/create/update related incident.
-                        // $incidents = $this->getIncidents(null, false);
-                        $incidents = $this->getIncidents($featureSettings['statuspage_component_id']);
-                        if (count($incidents)) {
-                            foreach ($incidents as $incident) {
-                                $change = false;
-                                if ($incident['status'] !== $status) {
-                                    $change = true;
-                                }
-                                if (!empty($incident['incident_updates'])) {
-                                    $lastUpdate = end($incident['incident_updates']);
-                                    if ($lastUpdate['body'] !== $body) {
+                            $result = $this->makeRequest($url, ['ignore_event_dispatch' => true], 'PATCH');
+                            if (!empty($result['error'])) {
+                                return;
+                            }
+                        }
+                        if (isset($featureSettings['statuspage_component_incidents']) && $featureSettings['statuspage_component_incidents']) {
+                            $incidents      = $this->getIncidents($featureSettings['statuspage_component_id']);
+                            $componentIds   = [];
+                            $componentIds[] = $component['id'];
+                            if (count($incidents)) {
+                                foreach ($incidents as $incident) {
+                                    $change = false;
+                                    if ($incident['status'] !== $incidentStatus) {
                                         $change = true;
                                     }
-                                }
-                                if ($change) {
-                                    // Update/Close the incident.
-                                    $componentIds   = [];
-                                    $componentIds[] = $component['id'];
-                                    if (!empty($lastUpdate)) {
-                                        foreach ($lastUpdate['affected_components'] as $affectedComponent) {
-                                            if (!empty($affectedComponent['id'])) {
-                                                $componentIds[] = $affectedComponent['id'];
-                                            }
+                                    if (!empty($incident['incident_updates'])) {
+                                        $lastUpdate = end($incident['incident_updates']);
+                                        if ($lastUpdate['body'] !== $body) {
+                                            $change = true;
                                         }
                                     }
-                                    $componentIds = array_unique($componentIds);
-                                    $this->updateIncident($incident['id'], $componentIds, $body, $status, $name);
+                                    if ($change) {
+                                        // Update/Close the incident.
+                                        if (!empty($lastUpdate)) {
+                                            foreach ($lastUpdate['affected_components'] as $affectedComponent) {
+                                                if (!empty($affectedComponent['id'])) {
+                                                    $componentIds[] = $affectedComponent['id'];
+                                                }
+                                            }
+                                        }
+                                        $componentIds = array_unique($componentIds);
+                                        $this->updateIncident(
+                                            $incident['id'],
+                                            $incidentStatus,
+                                            $name,
+                                            $body,
+                                            $componentIds
+                                        );
+                                    }
                                 }
+                            } elseif ($incidentStatus !== 'resolved') {
+                                $this->createIncident($incidentStatus, $name, $body, $componentIds);
                             }
-                        } else {
-                            // @todo - Create an incident.
                         }
                         break;
                     }
@@ -100,7 +108,7 @@ class HealthIntegration extends AbstractIntegration
         if ($this->isConfigured()) {
             $clientIdKey = $this->getClientIdKey();
             $cacheName   = 'statuspageComponents'.$this->keys[$clientIdKey];
-            $cacheExpire = 300;
+            $cacheExpire = 10;
             if (!$components = $this->cache->get($cacheName, $cacheExpire)) {
                 $clientSKey = $this->getClientSecretKey();
                 $state      = $this->getAuthLoginState();
@@ -187,21 +195,21 @@ class HealthIntegration extends AbstractIntegration
      * Update an active statuspage incident.
      *
      * @param       $incidentId
-     * @param array $componentIds List of components affected by the incident
-     * @param null  $body         The body of the new incident update that will be created
-     * @param null  $status       The status, one of investigating|identified|monitoring|resolved
-     * @param null  $name         The name of the incident
+     * @param null  $incidentStatus The status, one of investigating|identified|monitoring|resolved
+     * @param null  $name           The name of the incident
+     * @param null  $body           The body of the new incident update that will be created
+     * @param array $componentIds   List of components affected by the incident
      *
      * @return array|mixed|string
      */
-    private function updateIncident($incidentId, $componentIds, $body = null, $status = null, $name = null)
+    private function updateIncident($incidentId, $incidentStatus = null, $name = null, $body = null, $componentIds = [])
     {
         $result = [];
         if ($this->isConfigured()) {
             $clientIdKey = $this->getClientIdKey();
             $cacheName   = 'statuspageUpdateIncident'.implode(
                     '-',
-                    [$this->keys[$clientIdKey], $componentIds, $body, $status, $name]
+                    [$this->keys[$clientIdKey], $componentIds, $body, $incidentStatus, $name]
                 );
             $cacheExpire = 10;
             if (!$result = $this->cache->get($cacheName, $cacheExpire)) {
@@ -215,8 +223,8 @@ class HealthIntegration extends AbstractIntegration
                 if ($body) {
                     $url .= '&incident[body]='.urlencode($body);
                 }
-                if ($status) {
-                    $url .= '&incident[status]='.urlencode($status);
+                if ($incidentStatus) {
+                    $url .= '&incident[status]='.urlencode($incidentStatus);
                 }
                 if ($name) {
                     $url .= '&incident[name]='.urlencode($name);
@@ -225,6 +233,56 @@ class HealthIntegration extends AbstractIntegration
                     $url .= '&incident[component_ids][]='.(int) $componentId;
                 }
                 $result = $this->makeRequest($url, ['ignore_event_dispatch' => true], 'PATCH');
+                if (is_array($result) && count($result)) {
+                    $this->cache->set($cacheName, $result, $cacheExpire);
+                }
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Update an active statuspage incident.
+     *
+     * @param null  $incidentStatus The status, one of investigating|identified|monitoring|resolved
+     * @param null  $name           The name of the incident
+     * @param null  $body           The body of the new incident update that will be created
+     * @param array $componentIds   List of components affected by the incident
+     *
+     * @return array|mixed|string
+     */
+    private function createIncident($incidentStatus = null, $name = null, $body = null, $componentIds)
+    {
+        $result = [];
+        if ($this->isConfigured()) {
+            $clientIdKey = $this->getClientIdKey();
+            $cacheName   = 'statuspageCreateIncident'.implode(
+                    '-',
+                    [$this->keys[$clientIdKey], $componentIds, $body, $incidentStatus, $name]
+                );
+            $cacheExpire = 10;
+            if (!$result = $this->cache->get($cacheName, $cacheExpire)) {
+                $clientSKey = $this->getClientSecretKey();
+                $state      = $this->getAuthLoginState();
+                $url        = $this->getAuthenticationUrl()
+                    .'pages/'.$this->keys[$clientIdKey].'/incidents.json'
+                    .'?api_key='.$this->keys[$clientSKey]
+                    .'&response_type=code'
+                    .'&state='.$state;
+                if ($body) {
+                    $url .= '&incident[body]='.urlencode($body);
+                }
+                if ($incidentStatus) {
+                    $url .= '&incident[status]='.urlencode($incidentStatus);
+                }
+                if ($name) {
+                    $url .= '&incident[name]='.urlencode($name);
+                }
+                foreach ($componentIds as $componentId) {
+                    $url .= '&incident[component_ids][]='.(int) $componentId;
+                }
+                $result = $this->makeRequest($url, ['ignore_event_dispatch' => true], 'POST');
                 if (is_array($result) && count($result)) {
                     $this->cache->set($cacheName, $result, $cacheExpire);
                 }
@@ -371,53 +429,5 @@ class HealthIntegration extends AbstractIntegration
     public function getSupportedFeatures()
     {
         return [];
-    }
-
-    /**
-     * Update an active statuspage incident.
-     *
-     * @param       $incidentId
-     * @param array $componentIds List of components affected by the incident
-     * @param null  $body         The body of the new incident update that will be created
-     * @param null  $status       The status, one of investigating|identified|monitoring|resolved
-     * @param null  $name         The name of the incident
-     *
-     * @return array|mixed|string
-     */
-    private function createIncident($incidentId, $componentIds, $body = null, $status = null, $name = null)
-    {
-        $result = [];
-        if ($this->isConfigured()) {
-            $clientIdKey = $this->getClientIdKey();
-            $cacheName   = 'statuspageUpdateIncident'.$this->keys[$clientIdKey];
-            $cacheExpire = 10;
-            if (!$result = $this->cache->get($cacheName, $cacheExpire)) {
-                $clientSKey = $this->getClientSecretKey();
-                $state      = $this->getAuthLoginState();
-                $url        = $this->getAuthenticationUrl()
-                    .'pages/'.$this->keys[$clientIdKey].'/incidents/'.$incidentId.'.json'
-                    .'?api_key='.$this->keys[$clientSKey]
-                    .'&response_type=code'
-                    .'&state='.$state;
-                if ($body) {
-                    $url .= '&incident[body]='.urlencode($body);
-                }
-                if ($status) {
-                    $url .= '&incident[status]='.urlencode($status);
-                }
-                if ($name) {
-                    $url .= '&incident[name]='.urlencode($name);
-                }
-                foreach ($componentIds as $componentId) {
-                    $url .= '&incident[component_ids][]='.(int) $componentId;
-                }
-                $result = $this->makeRequest($url, ['ignore_event_dispatch' => true], 'PATCH');
-                if (is_array($result) && count($result)) {
-                    $this->cache->set($cacheName, $result, $cacheExpire);
-                }
-            }
-        }
-
-        return $result;
     }
 }

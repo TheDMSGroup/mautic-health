@@ -13,7 +13,7 @@ namespace MauticPlugin\MauticHealthBundle\Model;
 
 use Doctrine\ORM\EntityManager;
 use Mautic\PluginBundle\Helper\IntegrationHelper;
-use Mautic\PluginBundle\Integration\AbstractIntegration;
+use MauticPlugin\MauticHealthBundle\Integration\HealthIntegration;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -36,7 +36,7 @@ class HealthModel
     /** @var array */
     protected $settings;
 
-    /** @var AbstractIntegration */
+    /** @var HealthIntegration */
     protected $integration;
 
     /**
@@ -168,17 +168,20 @@ class HealthModel
     public function reportIncidents(OutputInterface $output = null)
     {
         if ($this->integration && $this->incidents && !empty($this->settings['statuspage_component_id'])) {
-            $message = 'hi';
-            $this->integration->setComponentStatus($this->settings['statuspage_component_id'], $message);
+            $name = 'test';
+            $body = 'hi';
+            $this->integration->setComponentStatus('monitoring', 'degraded_performance', $name, $body);
 
-            if ($output && $message) {
+            if ($output && $body) {
                 $output->writeln(
                     '<info>'.
-                    'Notifying Statuspage.io: '.$message
+                    'Notifying Statuspage.io: '.$body
                     .'</info>'
                 );
             }
 
+        } else {
+            $this->integration->setComponentStatus('resolved', 'operational', null, 'Application is healthy');
         }
     }
 }
