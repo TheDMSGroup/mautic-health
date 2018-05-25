@@ -179,7 +179,6 @@ class HealthModel
                     .'</info>'
                 );
             }
-
         } else {
             $this->integration->setComponentStatus('resolved', 'operational', null, 'Application is healthy');
         }

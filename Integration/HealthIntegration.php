@@ -18,7 +18,6 @@ use Mautic\PluginBundle\Integration\AbstractIntegration;
  */
 class HealthIntegration extends AbstractIntegration
 {
-
     /**
      * @param null $incidentStatus
      * @param null $componentStatus
@@ -85,7 +84,7 @@ class HealthIntegration extends AbstractIntegration
                                         );
                                     }
                                 }
-                            } elseif ($incidentStatus !== 'resolved') {
+                            } elseif ('resolved' !== $incidentStatus) {
                                 $this->createIncident($incidentStatus, $name, $body, $componentIds);
                             }
                         }
@@ -94,7 +93,6 @@ class HealthIntegration extends AbstractIntegration
                 }
             }
         }
-        $tmp = 1;
     }
 
     /**
@@ -159,7 +157,7 @@ class HealthIntegration extends AbstractIntegration
                 } else {
                     $url .= 'pages/'.$this->keys[$clientIdKey].'/incidents.json';
                 }
-                $url       .= '?api_key='.$this->keys[$clientSKey]
+                $url .= '?api_key='.$this->keys[$clientSKey]
                     .'&response_type=code'
                     .'&state='.$state;
                 $incidents = $this->makeRequest($url, ['ignore_event_dispatch' => true]);
@@ -301,7 +299,7 @@ class HealthIntegration extends AbstractIntegration
     }
 
     /**
-     * Note: Statuspage doesn't yet support a bounce-back redirect as far as I can discern :(
+     * Note: Statuspage doesn't yet support a bounce-back redirect as far as I can discern :(.
      *
      * @return string
      */
@@ -367,7 +365,7 @@ class HealthIntegration extends AbstractIntegration
      */
     public function appendToForm(&$builder, $data, $formArea)
     {
-        if ($formArea == 'features') {
+        if ('features' == $formArea) {
             $builder->add(
                 'campaign_rebuild_threshold',
                 'number',
@@ -393,7 +391,7 @@ class HealthIntegration extends AbstractIntegration
             $choices = [];
             foreach ($this->getComponents() as $component) {
                 $choices[$component['id']] = $component['name'];
-            };
+            }
             $builder->add(
                 'statuspage_component_id',
                 'choice',
