@@ -60,7 +60,7 @@ class HealthIntegration extends AbstractIntegration
                                         $change = true;
                                     }
                                     if (!empty($incident['incident_updates'])) {
-                                        $lastUpdate = end($incident['incident_updates']);
+                                        $lastUpdate = reset($incident['incident_updates']);
                                         if ($lastUpdate['body'] !== $body) {
                                             $change = true;
                                         }
@@ -105,9 +105,9 @@ class HealthIntegration extends AbstractIntegration
         $components = [];
         if ($this->isConfigured()) {
             $clientIdKey = $this->getClientIdKey();
-            $cacheName   = 'statuspageComponents'.$this->keys[$clientIdKey];
+            $cacheKey    = 'statuspageComponents'.$this->keys[$clientIdKey];
             $cacheExpire = 10;
-            if (!$components = $this->cache->get($cacheName, $cacheExpire)) {
+            if (!$components = $this->cache->get($cacheKey, $cacheExpire)) {
                 $clientSKey = $this->getClientSecretKey();
                 $state      = $this->getAuthLoginState();
                 $url        = $this->getAuthenticationUrl()
@@ -117,7 +117,7 @@ class HealthIntegration extends AbstractIntegration
                     .'&state='.$state;
                 $components = $this->makeRequest($url, ['ignore_event_dispatch' => true]);
                 if (is_array($components) && count($components)) {
-                    $this->cache->set($cacheName, $components, $cacheExpire);
+                    $this->cache->set($cacheKey, $components, $cacheExpire);
                 }
             }
         }
@@ -146,9 +146,9 @@ class HealthIntegration extends AbstractIntegration
         $incidents = [];
         if ($this->isConfigured()) {
             $clientIdKey = $this->getClientIdKey();
-            $cacheName   = 'statuspageIncidents'.$this->keys[$clientIdKey];
+            $cacheKey    = 'statuspageIncidents'.$this->keys[$clientIdKey];
             $cacheExpire = 10;
-            if (!$incidents = $this->cache->get($cacheName, $cacheExpire)) {
+            if (!$incidents = $this->cache->get($cacheKey, $cacheExpire)) {
                 $clientSKey = $this->getClientSecretKey();
                 $state      = $this->getAuthLoginState();
                 $url        = $this->getAuthenticationUrl();
@@ -157,12 +157,12 @@ class HealthIntegration extends AbstractIntegration
                 } else {
                     $url .= 'pages/'.$this->keys[$clientIdKey].'/incidents.json';
                 }
-                $url .= '?api_key='.$this->keys[$clientSKey]
+                $url       .= '?api_key='.$this->keys[$clientSKey]
                     .'&response_type=code'
                     .'&state='.$state;
                 $incidents = $this->makeRequest($url, ['ignore_event_dispatch' => true]);
                 if (is_array($incidents) && count($incidents)) {
-                    $this->cache->set($cacheName, $incidents, $cacheExpire);
+                    $this->cache->set($cacheKey, $incidents, $cacheExpire);
                 }
             }
         }
@@ -205,12 +205,9 @@ class HealthIntegration extends AbstractIntegration
         $result = [];
         if ($this->isConfigured()) {
             $clientIdKey = $this->getClientIdKey();
-            $cacheName   = 'statuspageUpdateIncident'.implode(
-                    '-',
-                    [$this->keys[$clientIdKey], $componentIds, $body, $incidentStatus, $name]
-                );
+            $cacheKey    = 'statuspageUpdateIncident'.$this->keys[$clientIdKey].implode('-', $componentIds);
             $cacheExpire = 10;
-            if (!$result = $this->cache->get($cacheName, $cacheExpire)) {
+            if (!$result = $this->cache->get($cacheKey, $cacheExpire)) {
                 $clientSKey = $this->getClientSecretKey();
                 $state      = $this->getAuthLoginState();
                 $url        = $this->getAuthenticationUrl()
@@ -232,7 +229,7 @@ class HealthIntegration extends AbstractIntegration
                 }
                 $result = $this->makeRequest($url, ['ignore_event_dispatch' => true], 'PATCH');
                 if (is_array($result) && count($result)) {
-                    $this->cache->set($cacheName, $result, $cacheExpire);
+                    $this->cache->set($cacheKey, $result, $cacheExpire);
                 }
             }
         }
@@ -255,12 +252,9 @@ class HealthIntegration extends AbstractIntegration
         $result = [];
         if ($this->isConfigured()) {
             $clientIdKey = $this->getClientIdKey();
-            $cacheName   = 'statuspageCreateIncident'.implode(
-                    '-',
-                    [$this->keys[$clientIdKey], $componentIds, $body, $incidentStatus, $name]
-                );
+            $cacheKey    = 'statuspageCreateIncident'.$this->keys[$clientIdKey].implode('-', $componentIds);
             $cacheExpire = 10;
-            if (!$result = $this->cache->get($cacheName, $cacheExpire)) {
+            if (!$result = $this->cache->get($cacheKey, $cacheExpire)) {
                 $clientSKey = $this->getClientSecretKey();
                 $state      = $this->getAuthLoginState();
                 $url        = $this->getAuthenticationUrl()
@@ -278,11 +272,11 @@ class HealthIntegration extends AbstractIntegration
                     $url .= '&incident[name]='.urlencode($name);
                 }
                 foreach ($componentIds as $componentId) {
-                    $url .= '&incident[component_ids][]='.(int) $componentId;
+                    $url .= '&incident[component_ids][]='.$componentId;
                 }
                 $result = $this->makeRequest($url, ['ignore_event_dispatch' => true], 'POST');
                 if (is_array($result) && count($result)) {
-                    $this->cache->set($cacheName, $result, $cacheExpire);
+                    $this->cache->set($cacheKey, $result, $cacheExpire);
                 }
             }
         }
