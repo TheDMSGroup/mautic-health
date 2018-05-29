@@ -157,7 +157,7 @@ class HealthIntegration extends AbstractIntegration
                 } else {
                     $url .= 'pages/'.$this->keys[$clientIdKey].'/incidents.json';
                 }
-                $url       .= '?api_key='.$this->keys[$clientSKey]
+                $url .= '?api_key='.$this->keys[$clientSKey]
                     .'&response_type=code'
                     .'&state='.$state;
                 $incidents = $this->makeRequest($url, ['ignore_event_dispatch' => true]);
