@@ -179,7 +179,10 @@ class HealthModel
      */
     public function reportIncidents(OutputInterface $output = null)
     {
-        if ($this->integration && $this->incidents && !empty($this->settings['statuspage_component_id'])) {
+        if (!$this->integration) {
+            return;
+        }
+        if ($this->incidents && !empty($this->settings['statuspage_component_id'])) {
             $name = 'Degraded Performance';
             $body = [];
             foreach ($this->incidents as $campaignId => $campaign) {
