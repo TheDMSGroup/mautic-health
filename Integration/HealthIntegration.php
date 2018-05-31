@@ -60,7 +60,13 @@ class HealthIntegration extends AbstractIntegration
                                         $change = true;
                                     }
                                     if (!empty($incident['incident_updates'])) {
-                                        $lastUpdate = reset($incident['incident_updates']);
+                                        // Get the latest incident update.
+                                        $updates = [];
+                                        foreach ($incident['incident_updates'] as $update) {
+                                            $updates[$update['updated_at']] = $update;
+                                        }
+                                        ksort($updates);
+                                        $lastUpdate = end($updates);
                                         if ($lastUpdate['body'] !== $body) {
                                             $change = true;
                                         }
