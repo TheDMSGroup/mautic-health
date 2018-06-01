@@ -31,7 +31,7 @@ class HealthIntegration extends AbstractIntegration
             if (!empty($featureSettings['statuspage_component_id'])) {
                 $components = $this->getComponents();
                 foreach ($components as $component) {
-                    if ($component['id'] === $featureSettings['statuspage_component_id']) {
+                    if (isset($component['id']) && $component['id'] === $featureSettings['statuspage_component_id']) {
                         // Update the component status if needed.
                         if ($componentStatus !== $component['status']) {
                             $clientIdKey = $this->getClientIdKey();
@@ -55,39 +55,41 @@ class HealthIntegration extends AbstractIntegration
                             $componentIds[] = $component['id'];
                             if (count($incidents)) {
                                 foreach ($incidents as $incident) {
-                                    $change = false;
-                                    if ($incident['status'] !== $incidentStatus) {
-                                        $change = true;
-                                    }
-                                    if (!empty($incident['incident_updates'])) {
-                                        // Get the latest incident update.
-                                        $updates = [];
-                                        foreach ($incident['incident_updates'] as $update) {
-                                            $updates[$update['updated_at']] = $update;
-                                        }
-                                        ksort($updates);
-                                        $lastUpdate = end($updates);
-                                        if ($lastUpdate['body'] !== $body) {
+                                    if (isset($incident['id'])) {
+                                        $change = false;
+                                        if ($incident['status'] !== $incidentStatus) {
                                             $change = true;
                                         }
-                                    }
-                                    if ($change) {
-                                        // Update/Close the incident.
-                                        if (!empty($lastUpdate)) {
-                                            foreach ($lastUpdate['affected_components'] as $affectedComponent) {
-                                                if (!empty($affectedComponent['id'])) {
-                                                    $componentIds[] = $affectedComponent['id'];
-                                                }
+                                        if (!empty($incident['incident_updates'])) {
+                                            // Get the latest incident update.
+                                            $updates = [];
+                                            foreach ($incident['incident_updates'] as $update) {
+                                                $updates[$update['updated_at']] = $update;
+                                            }
+                                            ksort($updates);
+                                            $lastUpdate = end($updates);
+                                            if ($lastUpdate['body'] !== $body) {
+                                                $change = true;
                                             }
                                         }
-                                        $componentIds = array_unique($componentIds);
-                                        $this->updateIncident(
-                                            $incident['id'],
-                                            $incidentStatus,
-                                            $name,
-                                            $body,
-                                            $componentIds
-                                        );
+                                        if ($change) {
+                                            // Update/Close the incident.
+                                            if (!empty($lastUpdate)) {
+                                                foreach ($lastUpdate['affected_components'] as $affectedComponent) {
+                                                    if (!empty($affectedComponent['id'])) {
+                                                        $componentIds[] = $affectedComponent['id'];
+                                                    }
+                                                }
+                                            }
+                                            $componentIds = array_unique($componentIds);
+                                            $this->updateIncident(
+                                                $incident['id'],
+                                                $incidentStatus,
+                                                $name,
+                                                $body,
+                                                $componentIds
+                                            );
+                                        }
                                     }
                                 }
                             } elseif ('resolved' !== $incidentStatus) {

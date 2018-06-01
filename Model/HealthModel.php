@@ -183,7 +183,7 @@ class HealthModel
             return;
         }
         if ($this->incidents && !empty($this->settings['statuspage_component_id'])) {
-            $name = 'Degraded Performance';
+            $name = 'Processing Delays';
             $body = [];
             foreach ($this->incidents as $campaignId => $campaign) {
                 foreach ($campaign as $incident) {
