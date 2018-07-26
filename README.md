@@ -1,4 +1,4 @@
-# Mautic Health [![Latest Stable Version](https://poser.pugx.org/thedmsgroup/mautic-health-bundle/v/stable)](https://packagist.org/packages/thedmsgroup/mautic-health-bundle) [![License](https://poser.pugx.org/thedmsgroup/mautic-health-bundle/license)](https://packagist.org/packages/thedmsgroup/mautic-health-bundle) [![Build Status](https://travis-ci.org/TheDMSGroup/mautic-health.svg?branch=master)](https://travis-ci.org/TheDMSGroup/mautic-health)
+# Mautic Health [![Latest Stable Version](https://poser.pugx.org/thedmsgroup/mautic-health-bundle/v/stable)](https://packagist.org/packages/thedmsgroup/mautic-health-bundle) [![License](https://poser.pugx.org/thedmsgroup/mautic-health-bundle/license)](https://packagist.org/packages/thedmsgroup/mautic-health-bundle) [![Build Status](https://travis-ci.com/TheDMSGroup/mautic-health.svg?branch=master)](https://travis-ci.com/TheDMSGroup/mautic-health)
 ![](./Assets/img/health.png)
 
 Checks the health of the Mautic instance, optionally reporting to statuspage.io.
