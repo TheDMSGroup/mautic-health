@@ -132,10 +132,12 @@ class HealthModel
             'el.campaign_id as campaign_id, c.name as campaign_name, COUNT(DISTINCT(el.lead_id)) as contact_count'
         );
         $query->from(MAUTIC_TABLE_PREFIX.'campaign_lead_event_log', 'el');
+        $query->leftJoin('el', MAUTIC_TABLE_PREFIX.'campaigns', 'c', 'c.id = el.campaign_id');
+        $query->leftJoin('el', MAUTIC_TABLE_PREFIX.'campaign_events', 'e', 'e.id = el.event_id');
         $query->where('el.is_scheduled = 1');
         $query->andWhere('el.trigger_date <= NOW()');
+        $query->andWhere('e.is_published = 1');
         $query->groupBy('el.campaign_id');
-        $query->leftJoin('el', MAUTIC_TABLE_PREFIX.'campaigns', 'c', 'c.id = el.campaign_id');
         $campaigns = $query->execute()->fetchAll();
         foreach ($campaigns as $campaign) {
             $id = $campaign['campaign_id'];
