@@ -82,13 +82,14 @@ class HealthModel
         $query->select(
             'cl.campaign_id as campaign_id, c.name as campaign_name, count(DISTINCT(cl.lead_id)) as contact_count'
         );
+        $query->leftJoin('cl', MAUTIC_TABLE_PREFIX.'campaigns', 'c', 'c.id = cl.campaign_id');
         $query->from(MAUTIC_TABLE_PREFIX.'campaign_leads', 'cl');
         $query->where('cl.manually_removed IS NOT NULL AND cl.manually_removed = 0');
         $query->andWhere(
             'NOT EXISTS (SELECT null FROM '.MAUTIC_TABLE_PREFIX.'campaign_lead_event_log e WHERE (cl.lead_id = e.lead_id) AND (e.campaign_id = cl.campaign_id))'
         );
+        $query->andWhere('c.is_published = 1');
         $query->groupBy('cl.campaign_id');
-        $query->leftJoin('cl', MAUTIC_TABLE_PREFIX.'campaigns', 'c', 'c.id = cl.campaign_id');
         $campaigns = $query->execute()->fetchAll();
         foreach ($campaigns as $campaign) {
             $id = $campaign['campaign_id'];
@@ -137,6 +138,7 @@ class HealthModel
         $query->where('el.is_scheduled = 1');
         $query->andWhere('el.trigger_date <= NOW()');
         $query->andWhere('e.is_published = 1');
+        $query->andWhere('c.is_published = 1');
         $query->groupBy('el.campaign_id');
         $campaigns = $query->execute()->fetchAll();
         foreach ($campaigns as $campaign) {
