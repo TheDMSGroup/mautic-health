@@ -23,3 +23,9 @@ If you have success/issues with other versions please report.
 3. Click "Health" and configure as desired.
 4. Add the cron task to run the health check as often as desired (Every 15 minutes recommended):
    `5,20,35,50 * * * * php /path/to/mautic/app/console mautic:health:check`
+   
+### New Relic Integration
+set Elastic Beanstalk Environment Variables
+
+    NR_API_KEY      - The API key from New Relic from New Relic Dashboard > Account settings > Integration > API Keys
+    APP_URL         - The Application Name used in New Relic
