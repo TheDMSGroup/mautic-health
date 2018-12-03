@@ -68,6 +68,85 @@ class HealthModel
         $this->settings = array_merge($this->settings, $settings);
     }
 
+    public function avgDelayCheck(OutputInterface $output = null, $verbose = false) {
+        $prefix = MAUTIC_TABLE_PREFIX;
+        $sql = <<<EOSQL
+-- All mautic delays merged. Two queries (the first is important).
+SET @@group_concat_max_len = 10000000000000;
+SELECT *
+FROM (
+	SELECT NULL as campaign_id,
+		NULL as campaign_name,
+		NULL as event_id,
+		NULL as event_name,
+		NULL as lead_count,
+		NULL as type,
+		NULL as avg_delay_s 
+	FROM (
+		SELECT @campaigns := (
+			SELECT GROUP_CONCAT(c.id SEPARATOR ',')
+			FROM {$prefix}campaigns c
+			WHERE c.is_published = 1
+		)
+		UNION ALL
+		SELECT @events := (
+			SELECT GROUP_CONCAT(ce.id SEPARATOR ',')
+			FROM {$prefix}campaign_events ce
+			WHERE ce.is_published = 1
+				AND FIND_IN_SET(ce.campaign_id, @campaigns) > 0
+		)
+	) vars
+UNION ALL
+	SELECT
+		cl.campaign_id AS campaign_id,
+		c.name as campaign_name,
+		NULL as event_id,
+		NULL as event_name,
+		count(cl.lead_id) AS lead_count,
+		'kickoff' as 'type',
+		ROUND(AVG(UNIX_TIMESTAMP() - UNIX_TIMESTAMP(cl.date_added))) as avg_delay_s
+	FROM {$prefix}campaign_leads cl
+	LEFT JOIN {$prefix}campaigns c
+		ON c.id = cl.campaign_id
+	WHERE (NOT EXISTS (
+		SELECT null FROM {$prefix}campaign_lead_event_log e
+		WHERE
+			cl.lead_id = e.lead_id
+			AND e.campaign_id = cl.campaign_id
+		))
+	AND cl.date_added > DATE_ADD(NOW(), INTERVAL -1 HOUR)
+	AND FIND_IN_SET(cl.campaign_id, @campaigns) > 0
+	GROUP BY cl.campaign_id
+UNION ALL
+	SELECT
+		el.campaign_id,
+		c.name as campaign_name,
+		el.event_id,
+		ce.name as event_name,
+		COUNT(el.lead_id) as lead_count,
+		'scheduled' as 'type',
+		ROUND(AVG(UNIX_TIMESTAMP() - UNIX_TIMESTAMP(el.trigger_date))) as avg_delay_s
+	FROM {$prefix}campaign_lead_event_log el
+	LEFT JOIN {$prefix}campaigns c
+		ON c.id = el.campaign_id
+	LEFT JOIN {$prefix}campaign_events ce
+		ON ce.id = el.event_id
+	WHERE
+		el.is_scheduled = 1
+		AND el.trigger_date <= NOW()
+		AND FIND_IN_SET(el.event_id, @events) > 0
+	GROUP BY el.event_id
+) combined
+WHERE avg_delay_s > 0
+ORDER BY avg_delay_s DESC;
+EOSQL;
+
+        $query = $em->getConnection()->prepare($sql);
+        $query->execute();
+        $results = $query->fetchAll();
+
+    }
+
     /**
      * Discern the number of leads waiting on mautic:campaign:rebuild.
      * This typically means a large segment has been given a campaign.
