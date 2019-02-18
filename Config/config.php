@@ -22,6 +22,8 @@ return [
                 'arguments' => [
                     'doctrine.orm.entity_manager',
                     'mautic.helper.integration',
+                    'mautic.campaign.model.campaign',
+                    'mautic.campaign.model.event',
                 ],
             ],
         ],

@@ -368,25 +368,47 @@ class HealthIntegration extends AbstractIntegration
     public function appendToForm(&$builder, $data, $formArea)
     {
         if ('features' == $formArea) {
+            // $builder->add(
+            //     'campaign_rebuild_delay',
+            //     'number',
+            //     [
+            //         'label' => $this->translator->trans('mautic.health.campaign_rebuild_delay'),
+            //         'data'  => !isset($data['campaign_rebuild_delay']) ? 10000 : $data['campaign_rebuild_delay'],
+            //         'attr'  => [
+            //             'tooltip' => $this->translator->trans('mautic.health.campaign_rebuild_delay.tooltip'),
+            //         ],
+            //     ]
+            // );
             $builder->add(
-                'campaign_rebuild_threshold',
+                'campaign_kickoff_delay',
                 'number',
                 [
-                    'label' => $this->translator->trans('mautic.health.campaign_rebuild_threshold'),
-                    'data'  => !isset($data['campaign_rebuild_threshold']) ? 10000 : $data['campaign_rebuild_threshold'],
+                    'label' => $this->translator->trans('mautic.health.campaign_kickoff_delay'),
+                    'data'  => !isset($data['campaign_kickoff_delay']) ? 3600 : $data['campaign_kickoff_delay'],
                     'attr'  => [
-                        'tooltip' => $this->translator->trans('mautic.health.campaign_rebuild_threshold.tooltip'),
+                        'tooltip' => $this->translator->trans('mautic.health.campaign_kickoff_delay.tooltip'),
                     ],
                 ]
             );
             $builder->add(
-                'campaign_trigger_threshold',
+                'campaign_scheduled_delay',
                 'number',
                 [
-                    'label' => $this->translator->trans('mautic.health.campaign_trigger_threshold'),
-                    'data'  => !isset($data['campaign_trigger_threshold']) ? 1000 : $data['campaign_trigger_threshold'],
+                    'label' => $this->translator->trans('mautic.health.campaign_scheduled_delay'),
+                    'data'  => !isset($data['campaign_scheduled_delay']) ? 3600 : $data['campaign_scheduled_delay'],
                     'attr'  => [
-                        'tooltip' => $this->translator->trans('mautic.health.campaign_trigger_threshold.tooltip'),
+                        'tooltip' => $this->translator->trans('mautic.health.campaign_scheduled_delay.tooltip'),
+                    ],
+                ]
+            );
+            $builder->add(
+                'campaign_inactive_delay',
+                'number',
+                [
+                    'label' => $this->translator->trans('mautic.health.campaign_inactive_delay'),
+                    'data'  => !isset($data['campaign_inactive_delay']) ? 3600 : $data['campaign_inactive_delay'],
+                    'attr'  => [
+                        'tooltip' => $this->translator->trans('mautic.health.campaign_inactive_delay.tooltip'),
                     ],
                 ]
             );
