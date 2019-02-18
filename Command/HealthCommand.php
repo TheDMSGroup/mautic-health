@@ -53,7 +53,7 @@ class HealthCommand extends ModeratedCommand
                 'campaign-inactive-delay',
                 null,
                 InputOption::VALUE_OPTIONAL,
-                'The maximum number of seconds average allowed for inactive events (the red non-action paths).'
+                'The maximum number of seconds average allowed for inactive events (decisions).'
             );
 
         parent::configure();
