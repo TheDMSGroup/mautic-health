@@ -15,6 +15,7 @@ use Mautic\CoreBundle\Command\ModeratedCommand;
 use MauticPlugin\MauticHealthBundle\Model\HealthModel;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\NullOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -67,7 +68,6 @@ class HealthCommand extends ModeratedCommand
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $verbose = $input->getOption('verbose');
         // $campaignRebuildDelay   = $input->getOption('campaign-rebuild-delay');
         $campaignKickoffDelay   = $input->getOption('campaign-kickoff-delay');
         $campaignScheduledDelay = $input->getOption('campaign-scheduled-delay');
@@ -76,15 +76,16 @@ class HealthCommand extends ModeratedCommand
         $container              = $this->getContainer();
         $translator             = $container->get('translator');
 
+        if ($quiet) {
+            $output = new NullOutput();
+        }
         if (!$this->checkRunStatus($input, $output)) {
             return 0;
         }
 
         /** @var HealthModel $healthModel */
         $healthModel = $container->get('mautic.health.model.health');
-        if ($verbose) {
-            $output->writeln('<info>'.$translator->trans('mautic.health.running').'</info>');
-        }
+        $output->writeln('<info>'.$translator->trans('mautic.health.running').'</info>');
         $settings = [];
         // if ($campaignRebuildDelay) {
         //     $settings['campaign_rebuild_delay'] = $campaignRebuildDelay;
@@ -101,26 +102,26 @@ class HealthCommand extends ModeratedCommand
         if ($settings) {
             $healthModel->setSettings($settings);
         }
-        if ($verbose) {
-            $output->writeln('<info>'.$translator->trans('mautic.health.kickoff').'</info>');
-        }
-        $healthModel->campaignKickoffCheck($output, $verbose);
-        if ($verbose) {
-            $output->writeln('<info>'.$translator->trans('mautic.health.scheduled').'</info>');
-        }
-        $healthModel->campaignScheduledCheck($output, $verbose);
+
+        $output->writeln('<info>'.$translator->trans('mautic.health.kickoff').'</info>');
+        $healthModel->campaignKickoffCheck($output);
+
+        $output->writeln('<info>'.$translator->trans('mautic.health.scheduled').'</info>');
+        $healthModel->campaignScheduledCheck($output);
+
         // @todo - Add negative action path check.
         // $healthModel->campaignRebuildCheck($output, $verbose);
+        $healthModel->setCache();
+
+        $test = $healthModel->getCache();
         if (!$quiet) {
             $healthModel->reportIncidents($output);
         }
-        if ($verbose) {
-            $output->writeln(
-                '<info>'.$translator->trans(
-                    'mautic.health.complete'
-                ).'</info>'
-            );
-        }
+        $output->writeln(
+            '<info>'.$translator->trans(
+                'mautic.health.complete'
+            ).'</info>'
+        );
         $this->completeRun();
 
         return 0;
