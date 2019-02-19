@@ -18,6 +18,7 @@ use Doctrine\ORM\EntityManager;
 use Mautic\CampaignBundle\Model\CampaignModel;
 use Mautic\CampaignBundle\Model\EventModel;
 use Mautic\CoreBundle\Helper\CacheStorageHelper;
+use Mautic\CoreBundle\Helper\ProgressBarHelper;
 use Mautic\PluginBundle\Helper\IntegrationHelper;
 use MauticPlugin\MauticHealthBundle\Integration\HealthIntegration;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -117,6 +118,7 @@ class HealthModel
             'NOT EXISTS (SELECT null FROM '.MAUTIC_TABLE_PREFIX.'campaign_lead_event_log e WHERE cl.lead_id = e.lead_id AND e.campaign_id = cl.campaign_id)'
         );
         $query->groupBy('cl.campaign_id');
+        $query->orderBy('avg_delay_s', 'DESC');
         $campaigns = $query->execute()->fetchAll();
         foreach ($campaigns as $campaign) {
             $id             = $campaign['campaign_id'];
@@ -134,16 +136,30 @@ class HealthModel
                     $campaign['avg_delay_s'].'s delay.',
             ];
             $this->delays[] = $delay;
-            if ($delay['avg_delay_s'] > $limit) {
-                $status            = 'error';
-                $this->incidents[] = $delay;
-            } else {
-                $status = 'info';
-            }
-            $output->writeln(
-                '<'.$status.'>'.$delay['body'].'</'.$status.'>'
-            );
+            $this->output($delay, $limit, $output);
         }
+    }
+
+    /**
+     * @param $delay
+     * @param $limit
+     * @param $output
+     */
+    private function output($delay, $limit, $output)
+    {
+        if ($delay['avg_delay_s'] > $limit) {
+            $status            = 'error';
+            $this->incidents[] = $delay;
+        } else {
+            $status = 'info';
+        }
+        $progress = ProgressBarHelper::init($output, $limit);
+        $progress->start();
+        $progress->advance($delay['avg_delay_s']);
+        $output->write(
+            '  <'.$status.'>'.$delay['body'].'</'.$status.'>'
+        );
+        $output->writeln('');
     }
 
     /**
@@ -284,6 +300,7 @@ class HealthModel
         $query->andWhere('el.trigger_date <= NOW()');
         $query->andWhere('el.event_id IN ('.implode(',', $eventIds).')');
         $query->groupBy('el.event_id');
+        $query->orderBy('avg_delay_s', 'DESC');
         $events = $query->execute()->fetchAll();
         foreach ($events as $event) {
             $id             = $event['campaign_id'];
@@ -297,19 +314,13 @@ class HealthModel
                 'avg_delay_s'   => $event['avg_delay_s'],
                 'body'          => 'Campaign '.$this->getPublishedCampaigns($id).
                     ' ('.$id.') has '.$event['contact_count'].
-                    ' contacts queued for scheduled event '.$event['event_name'].' ('.$event['event_id'].') with an average of '.
+                    ' contacts queued for scheduled event '.$this->getPublishedEvents(
+                        $event['event_id']
+                    ).' ('.$event['event_id'].') with an average of '.
                     $event['avg_delay_s'].'s delay.',
             ];
             $this->delays[] = $delay;
-            if ($delay['avg_delay_s'] > $limit) {
-                $status            = 'error';
-                $this->incidents[] = $delay;
-            } else {
-                $status = 'info';
-            }
-            $output->writeln(
-                '<'.$status.'>'.$delay['body'].'</'.$status.'>'
-            );
+            $this->output($delay, $limit, $output);
         }
     }
 

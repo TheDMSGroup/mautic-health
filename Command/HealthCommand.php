@@ -113,7 +113,6 @@ class HealthCommand extends ModeratedCommand
         // $healthModel->campaignRebuildCheck($output, $verbose);
         $healthModel->setCache();
 
-        $test = $healthModel->getCache();
         if (!$quiet) {
             $healthModel->reportIncidents($output);
         }
