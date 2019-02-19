@@ -109,13 +109,13 @@ class HealthModel
         $query->select(
             'cl.campaign_id AS campaign_id, count(cl.lead_id) AS contact_count, ROUND(AVG(UNIX_TIMESTAMP() - UNIX_TIMESTAMP(cl.date_added))) as avg_delay_s'
         );
-        $query->from(MAUTIC_TABLE_PREFIX.'campaign_leads', 'cl');
-        $query->where('cl.date_added > DATE_ADD(NOW(), INTERVAL -1 HOUR)');
+        $query->from(MAUTIC_TABLE_PREFIX.'campaign_leads cl USE INDEX(campaign_leads_date_added)');
+        $query->where('cl.date_added > DATE_ADD(NOW(), INTERVAL -6 HOUR)');
         $query->andWhere('cl.campaign_id IN ('.implode(',', $campaignIds).')');
         // Adding the manually removed check causes an index miss in 2.15.0+
         // $query->andWhere('cl.manually_removed IS NOT NULL AND cl.manually_removed = 0');
         $query->andWhere(
-            'NOT EXISTS (SELECT null FROM '.MAUTIC_TABLE_PREFIX.'campaign_lead_event_log e WHERE cl.lead_id = e.lead_id AND e.campaign_id = cl.campaign_id)'
+            'NOT EXISTS (SELECT null FROM '.MAUTIC_TABLE_PREFIX.'campaign_lead_event_log e USE INDEX(campaign_leads) WHERE cl.lead_id = e.lead_id AND e.campaign_id = cl.campaign_id AND e.rotation = cl.rotation)'
         );
         $query->groupBy('cl.campaign_id');
         $query->orderBy('avg_delay_s', 'DESC');
@@ -278,6 +278,7 @@ class HealthModel
             );
         }
         $this->cache->set('delays', $this->delays, null);
+        $this->cache->set('lastCached', time(), null);
         $this->delays = [];
     }
 
@@ -295,10 +296,11 @@ class HealthModel
         $query->select(
             'el.campaign_id, el.event_id, COUNT(el.lead_id) as contact_count, ROUND(AVG(UNIX_TIMESTAMP() - UNIX_TIMESTAMP(el.trigger_date))) as avg_delay_s'
         );
-        $query->from(MAUTIC_TABLE_PREFIX.'campaign_lead_event_log', 'el');
-        $query->where('el.is_scheduled = 1');
+        $query->from(MAUTIC_TABLE_PREFIX.'campaign_lead_event_log el USE INDEX(campaign_events_scheduled)');
+        $query->where('el.event_id IN ('.implode(',', $eventIds).')');
+        $query->andWhere('el.is_scheduled = 1');
         $query->andWhere('el.trigger_date <= NOW()');
-        $query->andWhere('el.event_id IN ('.implode(',', $eventIds).')');
+        $query->andWhere('el.trigger_date > DATE_ADD(NOW(), INTERVAL -6 HOUR)');
         $query->groupBy('el.event_id');
         $query->orderBy('avg_delay_s', 'DESC');
         $events = $query->execute()->fetchAll();
