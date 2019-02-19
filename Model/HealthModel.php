@@ -386,7 +386,7 @@ class HealthModel
                     $body[] = $incident['body'];
                 }
             }
-            $body = implode('\n', $body);
+            $body = implode(' ', $body);
             if ($output && $body) {
                 $output->writeln(
                     '<info>'.'Notifying Statuspage.io'.'</info>'
