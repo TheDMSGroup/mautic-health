@@ -16,7 +16,7 @@ return [
     'author'      => 'Mautic',
 
     'services' => [
-        'models'       => [
+        'models' => [
             'mautic.health.model.health' => [
                 'class'     => 'MauticPlugin\MauticHealthBundle\Model\HealthModel',
                 'arguments' => [
@@ -24,6 +24,14 @@ return [
                     'mautic.helper.integration',
                     'mautic.campaign.model.campaign',
                     'mautic.campaign.model.event',
+                ],
+            ],
+        ],
+        'events' => [
+            'mautic.health.dashboard.subscriber' => [
+                'class'     => 'MauticPlugin\MauticHealthBundle\EventListener\DashboardSubscriber',
+                'arguments' => [
+                    'mautic.health.model.health',
                 ],
             ],
         ],

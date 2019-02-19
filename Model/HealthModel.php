@@ -141,28 +141,6 @@ class HealthModel
     }
 
     /**
-     * @param $delay
-     * @param $limit
-     * @param $output
-     */
-    private function output($delay, $limit, $output)
-    {
-        if ($delay['avg_delay_s'] > $limit) {
-            $status            = 'error';
-            $this->incidents[] = $delay;
-        } else {
-            $status = 'info';
-        }
-        $progress = ProgressBarHelper::init($output, $limit);
-        $progress->start();
-        $progress->advance($delay['avg_delay_s']);
-        $output->write(
-            '  <'.$status.'>'.$delay['body'].'</'.$status.'>'
-        );
-        $output->writeln('');
-    }
-
-    /**
      * @param null $campaignId
      *
      * @return array|bool
@@ -180,6 +158,23 @@ class HealthModel
         } else {
             return $this->publishedCampaigns;
         }
+    }
+
+    /**
+     * Create a DBAL QueryBuilder preferring a slave connection if available.
+     *
+     * @return QueryBuilder
+     */
+    private function slaveQueryBuilder()
+    {
+        /** @var Connection $connection */
+        $connection = $this->em->getConnection();
+        if ($connection instanceof MasterSlaveConnection) {
+            // Prefer a slave connection if available.
+            $connection->connect('slave');
+        }
+
+        return new QueryBuilder($connection);
     }
 
     // /**
@@ -233,20 +228,25 @@ class HealthModel
     // }
 
     /**
-     * Create a DBAL QueryBuilder preferring a slave connection if available.
-     *
-     * @return QueryBuilder
+     * @param $delay
+     * @param $limit
+     * @param $output
      */
-    private function slaveQueryBuilder()
+    private function output($delay, $limit, $output)
     {
-        /** @var Connection $connection */
-        $connection = $this->em->getConnection();
-        if ($connection instanceof MasterSlaveConnection) {
-            // Prefer a slave connection if available.
-            $connection->connect('slave');
+        if ($delay['avg_delay_s'] > $limit) {
+            $status            = 'error';
+            $this->incidents[] = $delay;
+        } else {
+            $status = 'info';
         }
-
-        return new QueryBuilder($connection);
+        $progress = ProgressBarHelper::init($output, $limit);
+        $progress->start();
+        $progress->advance($delay['avg_delay_s']);
+        $output->write(
+            '  <'.$status.'>'.$delay['body'].'</'.$status.'>'
+        );
+        $output->writeln('');
     }
 
     /**
@@ -257,12 +257,15 @@ class HealthModel
         if (!$this->cache) {
             $this->cache = new CacheStorageHelper(
                 CacheStorageHelper::ADAPTOR_DATABASE,
-                'MauticHealthBundle',
+                'Health',
                 $this->em->getConnection()
             );
         }
 
-        return $this->cache->get('delays');
+        return [
+            'delays'     => $this->cache->get('delays'),
+            'lastCached' => $this->cache->get('lastCached'),
+        ];
     }
 
     /**
@@ -273,10 +276,16 @@ class HealthModel
         if (!$this->cache) {
             $this->cache = new CacheStorageHelper(
                 CacheStorageHelper::ADAPTOR_DATABASE,
-                'MauticHealthBundle',
+                'Health',
                 $this->em->getConnection()
             );
         }
+        usort(
+            $this->delays,
+            function ($a, $b) {
+                return $b['avg_delay_s'] - $a['avg_delay_s'];
+            }
+        );
         $this->cache->set('delays', $this->delays, null);
         $this->cache->set('lastCached', time(), null);
         $this->delays = [];

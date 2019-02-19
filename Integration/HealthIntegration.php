@@ -74,7 +74,7 @@ class HealthIntegration extends AbstractIntegration
                                         }
                                         if ($change) {
                                             // Update/Close the incident.
-                                            if (!empty($lastUpdate)) {
+                                            if (!empty($lastUpdate) && is_array($lastUpdate['affected_components'])) {
                                                 foreach ($lastUpdate['affected_components'] as $affectedComponent) {
                                                     if (!empty($affectedComponent['id'])) {
                                                         $componentIds[] = $affectedComponent['id'];
