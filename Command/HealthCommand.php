@@ -15,6 +15,7 @@ use Mautic\CoreBundle\Command\ModeratedCommand;
 use MauticPlugin\MauticHealthBundle\Model\HealthModel;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\NullOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -31,17 +32,29 @@ class HealthCommand extends ModeratedCommand
     {
         $this->setName('mautic:health:check')
             ->setDescription('General all purpose health check.')
+            // ->addOption(
+            //     'campaign-rebuild-delay',
+            //     null,
+            //     InputOption::VALUE_OPTIONAL,
+            //     'The maximum number of contacts waiting to be ingested into a campaign from a segment.'
+            // )
             ->addOption(
-                'campaign-rebuild-threshold',
+                'campaign-kickoff-delay',
                 null,
                 InputOption::VALUE_OPTIONAL,
-                'The maximum number of contacts waiting to be ingested into a campaign from a segment.'
+                'The maximum number of seconds average allowed for kickoff events at the top of the campaign.'
             )
             ->addOption(
-                'campaign-trigger-threshold',
+                'campaign-scheduled-delay',
                 null,
                 InputOption::VALUE_OPTIONAL,
-                'The maximum number of contacts waiting for scheduled campaign events to fire which are late.'
+                'The maximum number of seconds average allowed for scheduled events (beyond the intended delays).'
+            )
+            ->addOption(
+                'campaign-inactive-delay',
+                null,
+                InputOption::VALUE_OPTIONAL,
+                'The maximum number of seconds average allowed for inactive events (decisions).'
             );
 
         parent::configure();
@@ -55,48 +68,59 @@ class HealthCommand extends ModeratedCommand
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $verbose                  = $input->getOption('verbose');
-        $campaignRebuildThreshold = $input->getOption('campaign-rebuild-threshold');
-        $campaignTriggerThreshold = $input->getOption('campaign-trigger-threshold');
-        $quiet                    = $input->getOption('quiet');
-        $container                = $this->getContainer();
-        $translator               = $container->get('translator');
+        // $campaignRebuildDelay   = $input->getOption('campaign-rebuild-delay');
+        $campaignKickoffDelay   = $input->getOption('campaign-kickoff-delay');
+        $campaignScheduledDelay = $input->getOption('campaign-scheduled-delay');
+        $campaignInactiveDelay  = $input->getOption('campaign-inactive-delay');
+        $quiet                  = $input->getOption('quiet');
+        $container              = $this->getContainer();
+        $translator             = $container->get('translator');
 
+        if ($quiet) {
+            $output = new NullOutput();
+        }
         if (!$this->checkRunStatus($input, $output)) {
             return 0;
         }
 
         /** @var HealthModel $healthModel */
         $healthModel = $container->get('mautic.health.model.health');
-        if ($verbose) {
-            $output->writeln(
-                '<info>'.$translator->trans(
-                    'mautic.health.running'
-                ).'</info>'
-            );
-        }
+        $output->writeln('<info>'.$translator->trans('mautic.health.running').'</info>');
         $settings = [];
-        if ($campaignRebuildThreshold) {
-            $settings['campaign_rebuild_threshold'] = $campaignRebuildThreshold;
+        // if ($campaignRebuildDelay) {
+        //     $settings['campaign_rebuild_delay'] = $campaignRebuildDelay;
+        // }
+        if ($campaignKickoffDelay) {
+            $settings['campaign_kickoff_delay'] = $campaignKickoffDelay;
         }
-        if ($campaignTriggerThreshold) {
-            $settings['campaign_trigger_threshold'] = $campaignTriggerThreshold;
+        if ($campaignScheduledDelay) {
+            $settings['campaign_scheduled_delay'] = $campaignScheduledDelay;
+        }
+        if ($campaignInactiveDelay) {
+            $settings['campaign_inactive_delay'] = $campaignInactiveDelay;
         }
         if ($settings) {
             $healthModel->setSettings($settings);
         }
-        $healthModel->campaignRebuildCheck($output, $verbose);
-        $healthModel->campaignTriggerCheck($output, $verbose);
+
+        $output->writeln('<info>'.$translator->trans('mautic.health.kickoff').'</info>');
+        $healthModel->campaignKickoffCheck($output);
+
+        $output->writeln('<info>'.$translator->trans('mautic.health.scheduled').'</info>');
+        $healthModel->campaignScheduledCheck($output);
+
+        // @todo - Add negative action path check.
+        // $healthModel->campaignRebuildCheck($output, $verbose);
+        $healthModel->setCache();
+
         if (!$quiet) {
             $healthModel->reportIncidents($output);
         }
-        if ($verbose) {
-            $output->writeln(
-                '<info>'.$translator->trans(
-                    'mautic.health.complete'
-                ).'</info>'
-            );
-        }
+        $output->writeln(
+            '<info>'.$translator->trans(
+                'mautic.health.complete'
+            ).'</info>'
+        );
         $this->completeRun();
 
         return 0;
