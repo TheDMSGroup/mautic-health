@@ -67,6 +67,7 @@ class DashboardSubscriber extends MainDashboardSubscriber
             $widget->setHeight(330);
         }
         $params             = $widget->getParams();
+        $data               = [];
         $data['params']     = $params;
         $data['height']     = $widget->getHeight();
         $data['delays']     = isset($cache['delays']) ? $cache['delays'] : [];
