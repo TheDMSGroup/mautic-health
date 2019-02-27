@@ -11,7 +11,7 @@
 
 ?>
 
-<div class="chart-wrapper" style="height:<?php echo $data['height']; ?>px">
+<div class="chart-wrapper" style="height:<?php echo $data['height'] - 66; ?>px; overflow-y: auto;">
     <div class="pt-sd pr-md pb-md pl-md">
         <?php if (count($data['delays'])): ?>
             <div id="health-status-table">
