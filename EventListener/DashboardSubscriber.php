@@ -59,8 +59,6 @@ class DashboardSubscriber extends MainDashboardSubscriber
     public function onWidgetDetailGenerate(WidgetDetailEvent $event)
     {
         // This always pulls from cached data from the cron task.
-        // if (!$event->isCached()) {
-        // }
         $cache  = $this->healthModel->getCache();
         $widget = $event->getWidget();
         if ($widget->getHeight() < 330) {
@@ -76,8 +74,7 @@ class DashboardSubscriber extends MainDashboardSubscriber
 
         if ('campaign.health' == $event->getType()) {
             $event->setTemplate('MauticHealthBundle:Widgets:health.html.php');
+            $event->stopPropagation();
         }
-
-        $event->stopPropagation();
     }
 }
