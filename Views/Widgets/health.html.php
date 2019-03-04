@@ -41,8 +41,8 @@
                 </div>
             </div>
             <?php if (!empty($data['lastCached'])) {
-    echo '<small>Calculated: '.(new \DateTime($data['lastCached']))->format('c').'</small>';
-}
+                echo '<small>Calculated: '.(new \DateTime('@'.$data['lastCached']))->format('c').'</small>';
+            }
             ?>
         <?php else: ?>
             <h3>No delays detected</h3>
