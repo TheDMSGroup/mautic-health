@@ -110,7 +110,7 @@ class HealthModel
             'cl.campaign_id AS campaign_id, count(cl.lead_id) AS contact_count, ROUND(AVG(UNIX_TIMESTAMP() - UNIX_TIMESTAMP(cl.date_added))) as avg_delay_s'
         );
         $query->from(MAUTIC_TABLE_PREFIX.'campaign_leads cl USE INDEX(campaign_leads_date_added)');
-        $query->where('cl.date_added > DATE_ADD(NOW(), INTERVAL -6 HOUR)');
+        $query->where('cl.date_added > DATE_ADD(NOW(), INTERVAL -2 DAY)');
         $query->andWhere('cl.campaign_id IN ('.implode(',', $campaignIds).')');
         // Adding the manually removed check causes an index miss in 2.15.0+
         // $query->andWhere('cl.manually_removed IS NOT NULL AND cl.manually_removed = 0');
@@ -309,7 +309,7 @@ class HealthModel
         $query->where('el.event_id IN ('.implode(',', $eventIds).')');
         $query->andWhere('el.is_scheduled = 1');
         $query->andWhere('el.trigger_date <= NOW()');
-        $query->andWhere('el.trigger_date > DATE_ADD(NOW(), INTERVAL -6 HOUR)');
+        $query->andWhere('el.trigger_date > DATE_ADD(NOW(), INTERVAL -2 DAY)');
         $query->groupBy('el.event_id');
         $query->orderBy('avg_delay_s', 'DESC');
         $events = $query->execute()->fetchAll();
