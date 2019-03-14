@@ -76,9 +76,9 @@ class HealthCommand extends ModeratedCommand
         $container              = $this->getContainer();
         $translator             = $container->get('translator');
 
-        if ($quiet) {
-            $output = new NullOutput();
-        }
+        // if ($quiet) {
+        //     $output = new NullOutput();
+        // }
         if (!$this->checkRunStatus($input, $output)) {
             return 0;
         }

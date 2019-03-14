@@ -19,7 +19,9 @@
                     <table id="health-status" class="table table-striped table-bordered" width="100%" data-height="<?php echo $data['height']; ?>">
                         <thead>
                         <th>Campaign</th>
+                        <th>Campaign ID</th>
                         <th>Event</th>
+                        <th>Event ID</th>
                         <th>Type</th>
                         <th>Contacts</th>
                         <th>Delay</th>
@@ -30,7 +32,9 @@
                                 <th>
                                     <a href="/s/campaigns/view/<?php echo $delay['campaign_id']; ?>"><?php echo $delay['campaign_name']; ?></a>
                                 </th>
-                                <th><?php echo $delay['event_name']; ?> (<?php echo $delay['event_id']; ?>)</th>
+                                <th><?php echo $delay['campaign_id']; ?></th>
+                                <th><?php echo $delay['event_name']; ?></th>
+                                <th><?php echo $delay['event_id']; ?></th>
                                 <th><?php echo $delay['type']; ?></th>
                                 <th><?php echo $delay['contact_count']; ?></th>
                                 <th><?php echo $delay['avg_delay_s']; ?>s</th>
