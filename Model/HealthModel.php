@@ -175,7 +175,7 @@ class HealthModel
         if ($campaignId) {
             return isset($this->publishedCampaignsWithEvents[$campaignId]) ? $this->publishedCampaignsWithEvents[$campaignId] : null;
         } else {
-            return $this->publishedCampaigns;
+            return $this->publishedCampaignsWithEvents;
         }
     }
 
