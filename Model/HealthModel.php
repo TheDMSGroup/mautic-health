@@ -15,6 +15,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Connections\MasterSlaveConnection;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\ORM\EntityManager;
+use Mautic\CampaignBundle\Event\CampaignEvent;
 use Mautic\CampaignBundle\Model\CampaignModel;
 use Mautic\CampaignBundle\Model\EventModel;
 use Mautic\CoreBundle\Helper\CacheStorageHelper;
@@ -61,6 +62,9 @@ class HealthModel
     /** @var CacheStorageHelper */
     protected $cache;
 
+    /** @var array */
+    protected $publishedCampaignsWithEvents = [];
+
     /**
      * HealthModel constructor.
      *
@@ -100,7 +104,7 @@ class HealthModel
      */
     public function campaignKickoffCheck(OutputInterface $output = null)
     {
-        $campaignIds = array_keys($this->getPublishedCampaigns());
+        $campaignIds = array_keys($this->getPublishedCampaignsWithEvents());
         if (!$campaignIds) {
             return;
         }
@@ -137,6 +141,41 @@ class HealthModel
             ];
             $this->delays[] = $delay;
             $this->output($delay, $limit, $output);
+        }
+    }
+
+    /**
+     * @param null $campaignId
+     *
+     * @return array|bool
+     */
+    private function getPublishedCampaignsWithEvents($campaignId = null)
+    {
+        if (!$this->publishedCampaignsWithEvents) {
+            $campaignIds = array_keys($this->getPublishedCampaigns());
+            if ($campaignIds) {
+                /** @var CampaignEvent $event */
+                foreach ($this->eventModel->getRepository()->getEntities(
+                    [
+                        'filter' => [
+                            'force' => [
+                                [
+                                    'column' => 'IDENTITY(e.campaign)',
+                                    'expr'   => 'in',
+                                    'value'  => $campaignIds,
+                                ],
+                            ],
+                        ],
+                    ]
+                ) as $event) {
+                    $this->publishedCampaignsWithEvents[$event->getCampaign()->getId()] = $event->getCampaign()->getName();
+                }
+            }
+        }
+        if ($campaignId) {
+            return isset($this->publishedCampaignsWithEvents[$campaignId]) ? $this->publishedCampaignsWithEvents[$campaignId] : null;
+        } else {
+            return $this->publishedCampaignsWithEvents;
         }
     }
 

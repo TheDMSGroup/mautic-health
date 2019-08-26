@@ -32,12 +32,6 @@ class HealthCommand extends ModeratedCommand
     {
         $this->setName('mautic:health:check')
             ->setDescription('General all purpose health check.')
-            // ->addOption(
-            //     'campaign-rebuild-delay',
-            //     null,
-            //     InputOption::VALUE_OPTIONAL,
-            //     'The maximum number of contacts waiting to be ingested into a campaign from a segment.'
-            // )
             ->addOption(
                 'campaign-kickoff-delay',
                 null,
